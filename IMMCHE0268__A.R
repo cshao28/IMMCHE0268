@@ -3,6 +3,7 @@ library(ggplot2)
 library(rnaturalearth)
 library(rnaturalearthdata)
 library(dplyr)
+
 # Load Egypt boundary shapefile using rnaturalearth
 egypt <- ne_countries(scale = "medium", returnclass = "sf") %>% 
   filter(admin == "Egypt")
@@ -189,7 +190,7 @@ print(paste("Total number of loads required for closest points:", load_count_clo
 
 
 #######################################################################################################################################
-#########################################################Strategy2#####################################################################
+#########################################################Model2b#######################################################################
 #######################################################################################################################################
 #######################################################################################################################################
 
@@ -290,9 +291,10 @@ print(paste("Total number of loads required for closest points:", load_count_clo
 print(paste("Total number of loads required for furthest points:", load_count_furthest))
 
 
-##################################################################
-######################STRATEGY3&4#################################
-##################################################################
+#######################################################################################################################################
+#########################################################Model3#######################################################################
+#######################################################################################################################################
+#######################################################################################################################################
 
 # Set seed and generate scatter points
 num_points <- 500
@@ -391,7 +393,7 @@ total_distance <- total_distance_v1 + total_distance_v2
 print(paste("Total distance traveled by both vehicles:", total_distance))
 
 ##################################################################
-######################STRATEGY5#################################
+#####################Model4(not included in the paper)############
 ##################################################################
 
 
@@ -481,112 +483,8 @@ print(paste("Total distance traveled by vehicle 1:", total_distance_v1))
 print(paste("Total distance traveled by vehicle 2:", total_distance_v2))
 print(paste("Total distance traveled by both vehicles:", total_distance_v1 + total_distance_v2))
 
-
-
-##########################################testing##################################################################
-
-
-# Custom function to calculate Euclidean distance
-euclidean_distance <- function(lon1, lat1, lon2, lat2) {
-  sqrt((lon1 - lon2)^2 + (lat1 - lat2)^2)
-}
-
-# Set seed and generate scatter points
-num_points <- 500
-set.seed(123)  # For reproducibility
-
-# Define quarries
-quarry_khufu <- data.frame(lon = 31.1342, lat = 29.975)
-quarry_khafre <- data.frame(lon = 31.0, lat = 29.9)
-
-# Generate scatter points near quarries with clustering
-scatter_points_near_quarries <- data.frame(
-  lon = c(rnorm(num_points * 0.45, mean = 31.1342, sd = 0.02), rnorm(num_points * 0.45, mean = 31.0, sd = 0.02)),
-  lat = c(rnorm(num_points * 0.45, mean = 29.975, sd = 0.02), rnorm(num_points * 0.45, mean = 29.9, sd = 0.02))
-)
-
-# Generate some scatter points randomly across the map
-scatter_points_random <- data.frame(
-  lon = runif(num_points * 0.1, min = 30.8, max = 31.4),
-  lat = runif(num_points * 0.1, min = 29.7, max = 30.1)
-)
-
-scatter_points <- rbind(scatter_points_random, scatter_points_near_quarries)
-
-# Define the Khufu Pyramid location
-khufu_pyramid <- data.frame(lon = 31.1342, lat = 29.9792)
-
-# Vehicle capacities
-c_1 <- 6  # Capacity for vehicle handling quarry scatter points
-c_2 <- 2  # Capacity for vehicle handling random scatter points
-
-# Initialize loading counts and total distances
-load_count_v1_closest <- 0
-load_count_v2_furthest <- 0
-total_distance_v1 <- 0
-total_distance_v2 <- 0
-
-# Collect scatter points for vehicle 1 (near quarries)
-while (nrow(scatter_points_near_quarries) > 0) {
-  loaded_points_v1 <- data.frame()
-  
-  while (nrow(loaded_points_v1) < c_1 && nrow(scatter_points_near_quarries) > 0) {
-    scatter_points_near_quarries$distance_v1 <- euclidean_distance(khufu_pyramid$lon, khufu_pyramid$lat, scatter_points_near_quarries$lon, scatter_points_near_quarries$lat)
-    closest_point <- scatter_points_near_quarries %>% arrange(distance_v1) %>% head(1)
-    
-    loaded_points_v1 <- rbind(loaded_points_v1, closest_point)
-    scatter_points_near_quarries <- scatter_points_near_quarries %>% anti_join(closest_point, by = c("lon", "lat"))
-  }
-  
-  if (nrow(loaded_points_v1) > 0) {
-    # Calculate the trip distance for vehicle 1
-    trip_distance_v1 <- euclidean_distance(khufu_pyramid$lon, khufu_pyramid$lat, loaded_points_v1$lon[1], loaded_points_v1$lat[1])
-    for (i in 1:(nrow(loaded_points_v1) - 1)) {
-      trip_distance_v1 <- trip_distance_v1 + euclidean_distance(loaded_points_v1$lon[i], loaded_points_v1$lat[i], loaded_points_v1$lon[i + 1], loaded_points_v1$lat[i + 1])
-    }
-    trip_distance_v1 <- trip_distance_v1 + euclidean_distance(loaded_points_v1$lon[nrow(loaded_points_v1)], loaded_points_v1$lat[nrow(loaded_points_v1)], khufu_pyramid$lon, khufu_pyramid$lat)
-    total_distance_v1 <- total_distance_v1 + trip_distance_v1
-    
-    load_count_v1_closest <- load_count_v1_closest + 1
-  }
-}
-
-# Collect scatter points for vehicle 2 (random scatter points)
-while (nrow(scatter_points_random) > 0) {
-  loaded_points_v2 <- data.frame()
-  
-  while (nrow(loaded_points_v2) < c_2 && nrow(scatter_points_random) > 0) {
-    scatter_points_random$distance_v2 <- euclidean_distance(khufu_pyramid$lon, khufu_pyramid$lat, scatter_points_random$lon, scatter_points_random$lat)
-    furthest_point <- scatter_points_random %>% arrange(desc(distance_v2)) %>% head(1)
-    
-    loaded_points_v2 <- rbind(loaded_points_v2, furthest_point)
-    scatter_points_random <- scatter_points_random %>% anti_join(furthest_point, by = c("lon", "lat"))
-  }
-  
-  if (nrow(loaded_points_v2) > 0) {
-    # Calculate the trip distance for vehicle 2
-    trip_distance_v2 <- euclidean_distance(khufu_pyramid$lon, khufu_pyramid$lat, loaded_points_v2$lon[1], loaded_points_v2$lat[1])
-    for (i in 1:(nrow(loaded_points_v2) - 1)) {
-      trip_distance_v2 <- trip_distance_v2 + euclidean_distance(loaded_points_v2$lon[i], loaded_points_v2$lat[i], loaded_points_v2$lon[i + 1], loaded_points_v2$lat[i + 1])
-    }
-    trip_distance_v2 <- trip_distance_v2 + euclidean_distance(loaded_points_v2$lon[nrow(loaded_points_v2)], loaded_points_v2$lat[nrow(loaded_points_v2)], khufu_pyramid$lon, khufu_pyramid$lat)
-    total_distance_v2 <- total_distance_v2 + trip_distance_v2
-    
-    load_count_v2_furthest <- load_count_v2_furthest + 1
-  }
-}
-
-# Output the results
-print(paste("Total loads for vehicle 1 (closest):", load_count_v1_closest))
-print(paste("Total loads for vehicle 2 (furthest):", load_count_v2_furthest))
-total_loads <- load_count_v1_closest + load_count_v2_furthest
-print(paste("Total combined loads:", total_loads))
-print(paste("Total distance traveled by vehicle 1:", total_distance_v1))
-print(paste("Total distance traveled by vehicle 2:", total_distance_v2))
-print(paste("Total distance traveled by both vehicles:", total_distance_v1 + total_distance_v2))
-
 #######################################Sensitivity#######################################
-############################capacity
+#######################################capacity##########################################
 
 # Assuming euclidean_distance is defined and scatter_points, and current_location are initialized
 set.seed(123)  # For reproducibility
@@ -652,7 +550,7 @@ ggplot(results, aes(x = c_1)) +
        x = "Vehicle Capacity (c_1)",
        y = "Derivative (Total Loads Change Rate)") +
   theme_minimal()
-############################Number of vehicles##############
+############################Number of vehicles############################
 # Define quarries
 quarry_khufu <- data.frame(lon = 31.1342, lat = 29.975)
 quarry_khafre <- data.frame(lon = 31.0, lat = 29.9)
