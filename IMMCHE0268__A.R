@@ -1,3 +1,8 @@
+library(sf)
+library(ggplot2)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(dplyr)
 # Load Egypt boundary shapefile using rnaturalearth
 egypt <- ne_countries(scale = "medium", returnclass = "sf") %>% 
   filter(admin == "Egypt")
